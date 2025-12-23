@@ -5,10 +5,9 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from model import get_model
 
-DATA_DIR = os.getenv(
-    "DATA_DIR",
-    "/kaggle/input/bean-leaf-disease-dataset"
-)
+
+DATA_DIR = "/kaggle/input/bean-leaf-lesions-classification"
+
 
 BATCH_SIZE = 32
 EPOCHS = 10
