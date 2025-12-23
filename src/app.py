@@ -1,0 +1,42 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+from fastapi import FastAPI,File,UploadFile
+import torch
+from torchvision import transforms
+from PIL import Image
+import io
+from model import get_model
+
+
+app=FastAPI(title="Plant Disease Prediction API")
+DEVICE="cuda" if torch.cuda.is_available() else "cpu"
+MODEL_PATH="models/best_model.pth"
+
+checkpoint=torch.load(MODEL_PATH,map_location=DEVICE)
+class_names=checkpoint['class_names']
+model=get_model(num_classes=len(class_names))
+model.load_state_dict(checkpoint['model_state'])
+model=model.to(DEVICE)
+model.eval()
+
+transform=transforms.Compose([
+    transforms.Resize((128,128)),
+    transforms.ToTensor()
+])
+@app.post("/predict")
+async def predict_image(file: UploadFile = File(...)):
+    image_bytes = await file.read()
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+    image = transform(image).unsqueeze(0).to(DEVICE)
+
+    with torch.no_grad():
+        outputs = model(image)
+        probs = torch.softmax(outputs, dim=1)
+        conf, pred = torch.max(probs, dim=1)
+
+    return {
+        "prediction": class_names[pred.item()],
+        "confidence": round(conf.item(), 4)
+    }
