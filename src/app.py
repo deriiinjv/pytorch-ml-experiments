@@ -1,29 +1,48 @@
 import sys
 import os
+import io
+import urllib.request
+
 sys.path.append(os.path.dirname(__file__))
-from fastapi import FastAPI,File,UploadFile
+
+from fastapi import FastAPI, File, UploadFile
 import torch
 from torchvision import transforms
 from PIL import Image
-import io
 from model import get_model
 
+app = FastAPI(title="Plant Disease Prediction API")
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-app=FastAPI(title="Plant Disease Prediction API")
-DEVICE="cuda" if torch.cuda.is_available() else "cpu"
-MODEL_PATH="models/best_model.pth"
+MODEL_DIR = "models"
+MODEL_PATH = os.path.join(MODEL_DIR, "best_model.pth")
+MODEL_URL = os.getenv("MODEL_URL")
 
-checkpoint=torch.load(MODEL_PATH,map_location=DEVICE)
-class_names=checkpoint['class_names']
-model=get_model(num_classes=len(class_names))
-model.load_state_dict(checkpoint['model_state'])
-model=model.to(DEVICE)
+os.makedirs(MODEL_DIR, exist_ok=True)
+
+if not os.path.exists(MODEL_PATH):
+    if MODEL_URL is None:
+        raise RuntimeError("MODEL_URL environment variable not set")
+    print("Downloading model from Hugging Face...")
+    urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+    print("Model downloaded successfully")
+
+
+checkpoint = torch.load(MODEL_PATH, map_location=DEVICE)
+
+class_names = checkpoint["class_names"]
+
+model = get_model(num_classes=len(class_names))
+model.load_state_dict(checkpoint["model_state"])
+model = model.to(DEVICE)
 model.eval()
 
-transform=transforms.Compose([
-    transforms.Resize((128,128)),
+
+transform = transforms.Compose([
+    transforms.Resize((128, 128)),
     transforms.ToTensor()
 ])
+
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
     image_bytes = await file.read()
