@@ -23,9 +23,13 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 model = None
 class_names = None
 
-transform = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor()
+transform=transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -60,7 +64,10 @@ def health_check():
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
     image_bytes = await file.read()
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    try:
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except:
+        return {'error':'Invalid image file'}
     image = transform(image).unsqueeze(0).to(DEVICE)
     with torch.no_grad():
         outputs = model(image)
