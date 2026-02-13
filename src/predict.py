@@ -8,8 +8,12 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MODEL_PATH = "models/best_model.pth"
 
 transform = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor()
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225]
+    )
 ])
 
 def predict(image_path):
@@ -21,8 +25,11 @@ def predict(image_path):
     model.load_state_dict(checkpoint["model_state"])
     model = model.to(DEVICE)
     model.eval()
-
-    image = Image.open(image_path).convert("RGB")
+    try:
+        image = Image.open(image_path).convert("RGB")
+    except:
+        print("Invalid image file")
+        return None,None
     image = transform(image).unsqueeze(0).to(DEVICE)
 
     with torch.no_grad():

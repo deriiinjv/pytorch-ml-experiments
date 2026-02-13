@@ -14,16 +14,16 @@ EPOCHS = 10
 LR = 1e-3
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-train_tfms = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor()
+imagenet_tfms=transforms.Compose([
+    transforms.Resize((224,224)),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485,0.456,0.406],
+        std=[0.229,0.224,0.225]
+    )
 ])
-
-val_tfms = transforms.Compose([
-    transforms.Resize((128, 128)),
-    transforms.ToTensor()
-])
-
+train_tfms=imagenet_tfms
+val_tfms=imagenet_tfms
 train_ds = datasets.ImageFolder(
     os.path.join(DATA_DIR, "train"),
     transform=train_tfms
@@ -42,7 +42,7 @@ model = get_model(num_classes=len(train_ds.classes))
 model = model.to(DEVICE)
 
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+optimizer = torch.optim.Adam(model.classifier.parameters(), lr=LR)
 
 for epoch in range(EPOCHS):
     model.train()
